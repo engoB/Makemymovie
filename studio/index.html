@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Makemymovie · Studio</title>
+<meta name="description" content="Demandez un film à Claude : un sujet, un style, c'est parti.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23e8553a'/><path d='M12 9v14l11-7z' fill='white'/></svg>">
+<style>
+:root{
+  --bg:#f7f6f3; --surface:#ffffff; --ink:#1b1b1a; --muted:#6b6a66; --line:#e4e2dc;
+  --accent:#e8553a; --accent-ink:#ffffff; --soft:#fbe9e4; --focus:#e8553a55;
+  --radius:14px; --shadow:0 1px 2px #0000000d, 0 6px 24px #00000010;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#141413; --surface:#1d1d1b; --ink:#f1efe9; --muted:#a3a19a; --line:#2e2d2a;
+         --accent:#f06a4f; --accent-ink:#141413; --soft:#3a221c; --focus:#f06a4f66; --shadow:0 1px 2px #0006, 0 6px 24px #0005; }
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+button,input,textarea,select{font:inherit;color:inherit}
+a{color:inherit}
+.wrap{max-width:1040px;margin:0 auto;padding:0 20px}
+header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid var(--line)}
+header .wrap{display:flex;align-items:center;gap:16px;height:60px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.01em;text-decoration:none}
+.logo i{width:26px;height:26px;border-radius:7px;background:var(--accent);display:grid;place-items:center}
+.logo i:after{content:"";border-left:9px solid #fff;border-top:6px solid transparent;border-bottom:6px solid transparent;margin-left:3px}
+nav{margin-left:auto;display:flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+nav button{border:0;background:none;padding:6px 14px;border-radius:999px;cursor:pointer;color:var(--muted);font-weight:500;font-size:15px}
+nav button[aria-selected=true]{background:var(--ink);color:var(--bg)}
+main{padding:40px 0 140px}
+h1{font-size:clamp(28px,4.5vw,40px);line-height:1.1;letter-spacing:-.025em;margin:0 0 8px}
+.lead{color:var(--muted);margin:0 0 36px;font-size:17px}
+section.step{margin:0 0 40px}
+.step h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;margin:0 0 14px;display:flex;align-items:center;gap:10px}
+.step h2 b{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--bg);font-size:12px;letter-spacing:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius)}
+textarea,input[type=text],input[type=search]{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:14px 16px;outline:none;transition:border-color .15s, box-shadow .15s}
+textarea:focus,input:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--focus)}
+#sujet{min-height:120px;resize:vertical;font-size:18px}
+.hint{color:var(--muted);font-size:14px;margin:8px 2px 0}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);padding:7px 14px;border-radius:999px;cursor:pointer;font-size:14.5px;white-space:nowrap;transition:background .15s,border-color .15s}
+.chip:hover{border-color:var(--muted)}
+.chip[aria-pressed=true]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.scroller{overflow-x:auto;scrollbar-width:none;margin:0 -20px;padding:2px 20px}
+.scroller::-webkit-scrollbar{display:none}
+.scroller .chips{flex-wrap:nowrap}
+.filters{display:grid;gap:12px;margin:16px 0 18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px}
+.style{position:relative;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:var(--radius);padding:0;cursor:pointer;overflow:hidden;transition:transform .15s, box-shadow .15s, border-color .15s}
+.style:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.style[aria-pressed=true]{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent)}
+.style img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;background:var(--line)}
+.style .t{padding:10px 12px 12px}
+.style .n{font-weight:600;font-size:15px;line-height:1.25}
+.style .p{color:var(--muted);font-size:13px;margin-top:3px;line-height:1.3}
+.style .play{position:absolute;top:8px;right:8px;border:0;width:34px;height:34px;border-radius:50%;background:#000a;color:#fff;cursor:pointer;display:grid;place-items:center;opacity:.9}
+.style .play:hover{background:#000d}
+.style .play:after{content:"";border-left:10px solid #fff;border-top:6px solid transparent;border-bottom:6px solid transparent;margin-left:3px}
+.style .tag{position:absolute;top:8px;left:8px;background:#000a;color:#fff;font-size:11.5px;padding:3px 8px;border-radius:999px}
+.style.auto{display:flex;flex-direction:column;justify-content:center;min-height:100%;background:var(--soft);border-style:dashed}
+.style.auto .big{aspect-ratio:16/9;display:grid;place-items:center;font-size:40px}
+.empty{color:var(--muted);padding:30px 0;text-align:center}
+details.opts{padding:4px 18px}
+details.opts summary{cursor:pointer;list-style:none;padding:14px 0;font-weight:600;display:flex;align-items:center;gap:8px}
+details.opts summary::-webkit-details-marker{display:none}
+details.opts summary:before{content:"+";display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);font-weight:500}
+details.opts[open] summary:before{content:"–"}
+details.opts summary small{font-weight:400;color:var(--muted)}
+.opt{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}
+.opt label.k{color:var(--muted);font-size:14.5px}
+.switch{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:14.5px}
+.switch input{appearance:none;width:42px;height:24px;border-radius:999px;background:var(--line);position:relative;cursor:pointer;transition:background .15s;flex:none;margin:0}
+.switch input:after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 2px #0003}
+.switch input:checked{background:var(--accent)}
+.switch input:checked:after{left:21px}
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line)}
+.bar .wrap{display:flex;align-items:center;gap:12px;min-height:72px;padding-top:10px;padding-bottom:10px}
+.summary{flex:1;min-width:0;color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.summary b{color:var(--ink);font-weight:600}
+.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;border:1px solid var(--line);background:var(--surface);padding:11px 18px;border-radius:12px;cursor:pointer;font-weight:600;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.05)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:focus-visible,.chip:focus-visible,.style:focus-visible,nav button:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+dialog{border:0;border-radius:18px;padding:0;background:var(--surface);color:var(--ink);box-shadow:var(--shadow);width:min(920px,calc(100vw - 32px));max-height:calc(100vh - 32px)}
+dialog::backdrop{background:#000b}
+dialog video{display:block;width:100%;background:#000;aspect-ratio:16/9}
+dialog .dh{display:flex;align-items:center;gap:12px;padding:14px 18px}
+dialog .dh h3{margin:0;font-size:17px;flex:1}
+dialog .dh p{margin:0;color:var(--muted);font-size:14px}
+.x{border:0;background:var(--bg);width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:18px;line-height:1}
+.how{padding:22px 24px 24px}
+.how h3{margin:0 0 6px;font-size:20px}
+.how ol{margin:14px 0 18px;padding-left:22px;line-height:1.9}
+.how code,pre{font:13.5px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.how code{background:var(--bg);padding:2px 6px;border-radius:6px}
+pre{white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px;margin:0;max-height:38vh;overflow:auto}
+.toast{position:fixed;left:50%;bottom:92px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;font-size:14.5px;opacity:0;pointer-events:none;transition:all .25s;z-index:50}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.films{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px}
+.film{overflow:hidden}
+.film video{display:block;width:100%;aspect-ratio:16/9;background:#000}
+.film .t{padding:12px 16px 16px}
+.film .n{font-weight:600}
+.film .m{color:var(--muted);font-size:13.5px;margin-top:2px}
+.film .r{font-size:14.5px;margin-top:6px}
+.film .a{display:flex;gap:14px;margin-top:10px;font-size:14px}
+.film .a a{color:var(--muted)}
+.blank{padding:56px 24px;text-align:center;color:var(--muted)}
+.blank b{display:block;color:var(--ink);font-size:18px;margin-bottom:6px}
+footer{color:var(--muted);font-size:13px;padding:24px 0 110px}
+[hidden]{display:none!important}
+@media (max-width:640px){
+  .wrap{padding:0 16px} .scroller{margin:0 -16px;padding:2px 16px}
+  main{padding-top:28px}
+  .grid{grid-template-columns:repeat(2,1fr);gap:10px}
+  .style .p{display:none}
+  .opt{grid-template-columns:1fr;gap:8px}
+  .summary{display:none}
+  .bar .wrap{justify-content:stretch} .bar .btn{flex:1}
+  .bar .btn.ghost{flex:0 0 auto}
+  .logo span{display:none}
+  .how{padding:18px} .how .acts{flex-direction:column-reverse;align-items:stretch}
+}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <a class="logo" href="./"><i></i><span>Makemymovie</span></a>
+  <nav role="tablist">
+    <button role="tab" aria-selected="true" data-tab="nouveau">Nouveau film</button>
+    <button role="tab" aria-selected="false" data-tab="films">Mes films</button>
+  </nav>
+</div></header>
+
+<main class="wrap">
+<div id="tab-nouveau">
+  <h1>Quel film voulez-vous ?</h1>
+  <p class="lead">Un sujet, un style, et Claude réalise tout : images, voix off, musique et montage.</p>
+
+  <section class="step">
+    <h2><b>1</b> Le sujet</h2>
+    <textarea id="sujet" placeholder="Ex. : comment fonctionne le GPS, expliqué simplement à des collégiens"></textarea>
+    <p class="hint">Dites-le comme à un réalisateur : de quoi ça parle, pour qui, et l'idée à retenir.</p>
+  </section>
+
+  <section class="step">
+    <h2><b>2</b> Le style</h2>
+    <div class="filters">
+      <input type="search" id="q" placeholder="Rechercher un style : aquarelle, néon, carte, enfants…" autocomplete="off">
+      <div class="scroller"><div class="chips" id="cats"></div></div>
+    </div>
+    <div class="grid" id="grid"></div>
+    <p class="empty" id="none" hidden>Aucun style ne correspond.</p>
+  </section>
+
+  <section class="step">
+    <h2><b>3</b> Les options</h2>
+    <details class="opts card" id="opts">
+      <summary>Options <small>· facultatives, Claude choisit sinon</small></summary>
+      <div class="opt"><label class="k">Durée</label><div class="chips" data-opt="duree"></div></div>
+      <div class="opt"><label class="k">Format</label><div class="chips" data-opt="format"></div></div>
+      <div class="opt"><label class="k">Voix off</label><div class="chips" data-opt="voix"></div></div>
+      <div class="opt"><label class="k">Ton</label><div class="chips" data-opt="ton"></div></div>
+      <div class="opt"><label class="k">Musique</label><div class="chips" data-opt="musique"></div></div>
+      <div class="opt"><label class="k">Étapes</label>
+        <div class="row" style="gap:18px">
+          <label class="switch"><input type="checkbox" id="questions" checked> Claude peut me poser des questions</label>
+          <label class="switch"><input type="checkbox" id="storyboard"> Voir un storyboard d'abord</label>
+          <label class="switch"><input type="checkbox" id="soustitres" checked> Sous-titres</label>
+        </div>
+      </div>
+      <div class="opt"><label class="k" for="titre">Titre</label><input type="text" id="titre" placeholder="Laisser vide : Claude le trouve"></div>
+      <div class="opt"><label class="k" for="notes">Précisions</label><textarea id="notes" rows="3" placeholder="Couleurs de marque, noms à citer, public, chiffres à utiliser, fichiers que je joindrai…"></textarea></div>
+    </details>
+  </section>
+</div>
+
+<div id="tab-films" hidden>
+  <h1>Mes films</h1>
+  <p class="lead">Les films terminés apparaissent ici automatiquement.</p>
+  <div class="films" id="films"></div>
+</div>
+</main>
+
+<footer class="wrap">Styles et outils : <a href="https://github.com/lemomo-ai/lemo-opuscar">Lemo-Opuscar</a> de Lemomo (LemoLab) · <a id="repo-link" href="#">Mon repo</a></footer>
+
+<div class="bar" id="bar"><div class="wrap">
+  <div class="summary" id="summary"></div>
+  <button class="btn ghost" id="voir" title="Voir le message">Aperçu</button>
+  <button class="btn primary" id="go" disabled>Copier et ouvrir Claude</button>
+</div></div>
+
+<dialog id="demo">
+  <video id="demoVideo" controls playsinline preload="none"></video>
+  <div class="dh"><div style="flex:1"><h3 id="demoTitle"></h3><p id="demoSub"></p></div>
+    <button class="btn" id="demoPick">Choisir ce style</button>
+    <button class="x" data-close aria-label="Fermer">×</button></div>
+</dialog>
+
+<dialog id="how">
+  <div class="how">
+    <div class="row" style="align-items:flex-start"><div style="flex:1"><h3 id="howTitle">Demande copiée ✓</h3>
+      <p class="hint" style="margin:0">Il ne reste qu'à la coller dans Claude.</p></div>
+      <button class="x" data-close aria-label="Fermer">×</button></div>
+    <ol>
+      <li>Dans l'onglet Claude Code qui vient de s'ouvrir, choisissez le repo <code id="repoName"></code>.</li>
+      <li>Collez la demande (<code>Ctrl</code>+<code>V</code> ou appui long sur mobile), puis envoyez.</li>
+      <li>Comptez 30 à 60 minutes. Le film arrivera dans <b>Mes films</b>.</li>
+    </ol>
+    <pre id="prompt"></pre>
+    <div class="row acts" style="margin-top:14px;justify-content:flex-end">
+      <a class="btn" id="issue" target="_blank" rel="noopener">Garder une trace sur GitHub</a>
+      <button class="btn" id="copy2">Copier à nouveau</button>
+      <a class="btn primary" id="open2" href="https://claude.ai/code" target="_blank" rel="noopener">Ouvrir Claude ↗</a>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---- Réglages : à modifier si le repo change de nom ----
+const REPO = (() => {
+  const h = location.hostname.match(/^([^.]+)\.github\.io$/), p = location.pathname.split('/').filter(Boolean)[0];
+  return h && p ? `${h[1]}/${p}` : 'engoB/Makemymovie';
+})();
+const CLAUDE_URL = 'https://claude.ai/code';
+const DEMO_BASE = 'https://lemomo-ai.github.io/lemo-opuscar-films/';
+const GALLERY = 'https://lemomo-ai.github.io/lemo-opuscar/styles/';
+const FILMS = 'films/';   // mes-films/ copié par le workflow
+
+const OPTIONS = {
+  duree:   [['auto','Auto'],['30','30 s'],['45','45 s'],['60','1 min'],['90','1 min 30'],['120','2 min']],
+  format:  [['16:9','Paysage 16:9'],['9:16','Vertical 9:16'],['1:1','Carré 1:1']],
+  voix:    [['femme','Femme'],['homme','Homme'],['aucune','Sans voix']],
+  ton:     [['auto','Auto'],['pedago','Pédagogique'],['dynamique','Dynamique'],['emouvant','Émouvant'],['humour','Humoristique'],['serieux','Sérieux']],
+  musique: [['originale','Originale'],['douce','Discrète'],['aucune','Sans musique']],
+};
+const LABEL = {
+  format: {'16:9':'1920×1080 (paysage 16:9)','9:16':'1080×1920 (vertical 9:16, réseaux sociaux)','1:1':'1080×1080 (carré)'},
+  voix: {femme:'française, voix féminine (Kokoro ff_siwis, hors ligne)', homme:'française, voix masculine (edge-tts fr-FR-HenriNeural)', aucune:'aucune, le film se comprend par l\'image et le texte'},
+  ton: {pedago:'pédagogique et clair',dynamique:'dynamique et rythmé',emouvant:'émouvant',humour:'humoristique',serieux:'sérieux et factuel'},
+  musique: {originale:'originale, composée pour le film', douce:'originale mais discrète, en fond', aucune:'aucune (bruitages seulement)'},
+};
+
+const $ = s => document.querySelector(s);
+const state = load() || {sujet:'', style:'auto', cat:'Tous', q:'', duree:'auto', format:'16:9', voix:'femme', ton:'auto', musique:'originale',
+  questions:true, storyboard:false, soustitres:true, titre:'', notes:''};
+let STYLES = [], CATS = [];
+
+function load(){ try { return JSON.parse(localStorage.getItem('mmm-brouillon')); } catch(e){ return null; } }
+function save(){ try { localStorage.setItem('mmm-brouillon', JSON.stringify(state)); } catch(e){} }
+function toast(t){ const el=$('#toast'); el.textContent=t; el.classList.add('on'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('on'),2200); }
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const norm = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+
+// ---- Onglets ----
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => tab(b.dataset.tab));
+function tab(t){
+  document.querySelectorAll('nav button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab===t));
+  $('#tab-nouveau').hidden = t!=='nouveau'; $('#tab-films').hidden = t!=='films'; $('#bar').hidden = t!=='nouveau';
+  if (t==='films') loadFilms();
+  history.replaceState(null,'', t==='films' ? '#films' : location.pathname);
+}
+
+// ---- Styles ----
+fetch('styles.json').then(r=>r.json()).then(d => { STYLES=d.styles; CATS=d.categories; renderCats(); renderGrid(); update(); });
+
+function renderCats(){
+  const all = ['Tous', ...CATS];
+  $('#cats').innerHTML = all.map(c => `<button class="chip" aria-pressed="${state.cat===c}" data-c="${esc(c)}">${esc(c)}</button>`).join('');
+  $('#cats').onclick = e => { const b=e.target.closest('.chip'); if(!b) return; state.cat=b.dataset.c; save(); renderCats(); renderGrid(); };
+}
+function renderGrid(){
+  const q = norm(state.q.trim());
+  const list = STYLES.filter(s => (state.cat==='Tous' || s.cat===state.cat) &&
+    (!q || norm(`${s.fr} ${s.en} ${s.pour} ${s.cat} ${s.slug}`).includes(q)));
+  const auto = (state.cat==='Tous' && !q) ? `<button class="style auto" data-s="auto" aria-pressed="${state.style==='auto'}">
+      <div class="big">✨</div><div class="t"><div class="n">Laisser Claude choisir</div><div class="p">Il propose le style le plus adapté au sujet</div></div></button>` : '';
+  $('#grid').innerHTML = auto + list.map(s => `<button class="style" data-s="${s.slug}" aria-pressed="${state.style===s.slug}">
+      <img src="vignettes/${s.slug}.webp" alt="" loading="lazy" width="480" height="270">
+      ${s.img ? '<span class="tag" title="Ce style a besoin d\'un générateur d\'images">✦ images IA</span>' : ''}
+      <span class="play" role="button" aria-label="Voir la démo" data-demo="${s.slug}"></span>
+      <div class="t"><div class="n">${esc(s.fr)}</div><div class="p">${esc(s.pour)}</div></div></button>`).join('');
+  $('#none').hidden = list.length > 0 || auto;
+}
+$('#grid').onclick = e => {
+  const d = e.target.closest('[data-demo]'); if (d){ e.stopPropagation(); openDemo(d.dataset.demo); return; }
+  const b = e.target.closest('.style'); if(!b) return;
+  state.style = b.dataset.s; save();
+  document.querySelectorAll('.style').forEach(x => x.setAttribute('aria-pressed', x===b));
+  update();
+};
+$('#q').value = state.q;
+$('#q').oninput = e => { state.q = e.target.value; if (state.q && state.cat!=='Tous'){ state.cat='Tous'; renderCats(); } save(); renderGrid(); };
+
+// ---- Démo ----
+function openDemo(slug){
+  const s = STYLES.find(x=>x.slug===slug), v = $('#demoVideo');
+  $('#demoTitle').textContent = s.fr;
+  $('#demoSub').innerHTML = `${esc(s.en)} · ${esc(s.cat)} · <a href="${GALLERY}${slug}/" target="_blank" rel="noopener">fiche complète ↗</a>`;
+  v.poster = `vignettes/${slug}.webp`; v.src = `${DEMO_BASE}${slug}.mp4`;
+  $('#demoPick').onclick = () => { state.style=slug; save(); renderGrid(); update(); $('#demo').close(); toast(`Style choisi : ${s.fr}`); };
+  $('#demo').showModal(); v.play().catch(()=>{});
+}
+$('#demo').addEventListener('close', () => { const v=$('#demoVideo'); v.pause(); v.removeAttribute('src'); v.load(); });
+document.querySelectorAll('dialog').forEach(d => d.addEventListener('click', e => { if (e.target===d || e.target.closest('[data-close]')) d.close(); }));
+
+// ---- Options ----
+document.querySelectorAll('[data-opt]').forEach(box => {
+  const k = box.dataset.opt;
+  const draw = () => box.innerHTML = OPTIONS[k].map(([v,l]) => `<button class="chip" aria-pressed="${state[k]===v}" data-v="${v}">${l}</button>`).join('');
+  draw(); box.onclick = e => { const b=e.target.closest('.chip'); if(!b) return; state[k]=b.dataset.v; save(); draw(); update(); };
+});
+['questions','storyboard','soustitres'].forEach(k => { $('#'+k).checked = state[k]; $('#'+k).onchange = e => { state[k]=e.target.checked; save(); update(); }; });
+['sujet','titre','notes'].forEach(k => { $('#'+k).value = state[k]; $('#'+k).oninput = e => { state[k]=e.target.value; save(); update(); }; });
+
+// ---- Le message pour Claude ----
+function prompt(){
+  const s = STYLES.find(x=>x.slug===state.style);
+  const L = ['🎬 Nouvelle demande de film', ''];
+  L.push(`Sujet : ${state.sujet.trim()}`);
+  if (state.titre.trim()) L.push(`Titre : ${state.titre.trim()}`);
+  L.push(s ? `Style : ${s.en} (« ${s.fr} », styles/${s.slug}/STYLE.md)`
+           : `Style : à toi de choisir. ${state.questions ? 'Propose-moi 2 ou 3 styles adaptés avec ta recommandation.' : 'Prends le plus adapté au sujet et dis-moi pourquoi.'}`);
+  if (s && s.img) L.push('⚠ Ce style a besoin d\'un générateur d\'images : vérifie ce qui est disponible avant de commencer.');
+  L.push(`Durée : ${state.duree==='auto' ? 'à toi de voir selon le sujet' : 'environ ' + (state.duree>=60 ? (state.duree/60).toString().replace('.',',') + ' min' : state.duree + ' s')}`);
+  L.push(`Format : ${LABEL.format[state.format]}`);
+  L.push(`Voix off : ${LABEL.voix[state.voix]}`);
+  if (state.ton!=='auto') L.push(`Ton : ${LABEL.ton[state.ton]}`);
+  L.push(`Musique : ${LABEL.musique[state.musique]}`);
+  L.push(`Sous-titres : ${state.soustitres ? 'oui, en français (fichier .srt et incrustés si le style le permet)' : 'non'}`);
+  L.push(`Storyboard : ${state.storyboard ? 'oui, montre-le-moi et attends mon accord avant la production' : 'non, va jusqu\'au film fini'}`);
+  L.push(`Questions : ${state.questions ? 'oui, en une seule fois si nécessaire' : 'non, décide toi-même et lance la production'}`);
+  if (state.notes.trim()) L.push('', 'Précisions :', state.notes.trim());
+  L.push('', 'Suis CLAUDE.md : lance tools/preparer.sh, réalise le film dans films/<nom>/, publie-le dans mes-films/ et pousse sur main.');
+  return L.join('\n');
+}
+function update(){
+  const ok = state.sujet.trim().length > 2;
+  $('#go').disabled = !ok;
+  const s = STYLES.find(x=>x.slug===state.style);
+  const bits = [s ? `<b>${esc(s.fr)}</b>` : '<b>Style choisi par Claude</b>'];
+  bits.push(state.duree==='auto' ? 'durée auto' : OPTIONS.duree.find(o=>o[0]===state.duree)[1]);
+  bits.push(OPTIONS.format.find(o=>o[0]===state.format)[1].split(' ')[0].toLowerCase());
+  bits.push(state.voix==='aucune' ? 'sans voix' : 'voix ' + state.voix);
+  $('#summary').innerHTML = ok ? bits.join(' · ') : 'Écrivez d\'abord le sujet du film';
+}
+async function copy(){
+  const t = prompt();
+  try { await navigator.clipboard.writeText(t); return true; }
+  catch(e){ const a=document.createElement('textarea'); a.value=t; document.body.appendChild(a); a.select();
+    let ok=false; try{ ok=document.execCommand('copy'); }catch(_){} a.remove(); return ok; }
+}
+function showHow(copied){
+  $('#prompt').textContent = prompt();
+  $('#repoName').textContent = REPO;
+  $('#howTitle').textContent = copied ? 'Demande copiée ✓' : 'Votre demande';
+  const title = '🎬 ' + (state.titre.trim() || state.sujet.trim()).slice(0, 80);
+  $('#issue').href = `https://github.com/${REPO}/issues/new?labels=film&title=${encodeURIComponent(title)}&body=${encodeURIComponent(prompt())}`;
+  $('#how').showModal();
+}
+$('#go').onclick = async () => {
+  const ok = await copy();
+  window.open(CLAUDE_URL, '_blank', 'noopener');
+  showHow(ok);
+};
+$('#voir').onclick = () => showHow(false);
+$('#copy2').onclick = async () => toast(await copy() ? 'Copié ✓' : 'Sélectionnez le texte et copiez-le');
+
+// ---- Mes films ----
+let filmsLoaded = false;
+function loadFilms(){
+  if (filmsLoaded) return; filmsLoaded = true;
+  fetch(FILMS + 'films.json', {cache:'no-store'}).then(r => r.ok ? r.json() : []).catch(() => []).then(list => {
+    if (!list.length){ $('#films').innerHTML = `<div class="blank card" style="grid-column:1/-1"><b>Pas encore de film</b>Votre premier film apparaîtra ici dès que Claude l'aura terminé.<br><br><button class="btn primary" onclick="tab('nouveau')">Demander un film</button></div>`; return; }
+    $('#films').innerHTML = list.map(f => {
+      const s = STYLES.find(x=>x.slug===f.style);
+      const d = f.duree ? `${Math.floor(f.duree/60)}:${String(Math.round(f.duree%60)).padStart(2,'0')}` : '';
+      return `<article class="film card">
+        <video controls playsinline preload="none" poster="${FILMS}${esc(f.nom)}.jpg" src="${FILMS}${esc(f.nom)}.mp4"></video>
+        <div class="t"><div class="n">${esc(f.titre || f.nom)}</div>
+        <div class="m">${[s ? s.fr : f.style, d, f.date].filter(Boolean).map(esc).join(' · ')}</div>
+        ${f.resume ? `<div class="r">${esc(f.resume)}</div>` : ''}
+        <div class="a"><a href="${FILMS}${esc(f.nom)}.mp4" download>Télécharger</a>
+        <a href="https://github.com/${REPO}/tree/main/films/${encodeURIComponent(f.nom)}" target="_blank" rel="noopener">Code source</a></div></div></article>`;
+    }).join('');
+  });
+}
+$('#repo-link').href = `https://github.com/${REPO}`;
+if (location.hash === '#films') tab('films');
+update();
+</script>
+</body>
+</html>
